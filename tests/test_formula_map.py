@@ -1,8 +1,8 @@
 from openpyxl import Workbook
 
 from formula_map.dependency_graph import DependencyGraph
-from formula_map.loader import WorkbookLoader
-from formula_map.parser import CellReference, FormulaParser
+from formula_map.formula_parser import CellReference, FormulaParser
+from formula_map.workbook_loader import WorkbookLoader
 
 
 def test_parser_resolves_local_and_cross_sheet_ranges():

@@ -4,8 +4,8 @@ from pathlib import Path
 
 import networkx as nx
 
-from .loader import LoadedWorkbook
-from .parser import CellReference, FormulaParser
+from .formula_parser import CellReference, FormulaParser
+from .workbook_loader import LoadedWorkbook
 
 
 class DependencyGraph:
