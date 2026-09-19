@@ -2,10 +2,18 @@
 
 import argparse
 from pathlib import Path
+import sys
 
-from .dependency_graph import DependencyGraph
-from .formula_parser import CellReference
-from .workbook_loader import WorkbookLoader
+if __package__:
+    from .dependency_graph import DependencyGraph
+    from .formula_parser import CellReference
+    from .workbook_loader import WorkbookLoader
+else:
+    # Allow `python src/formula_map/main.py` from a source checkout.
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from formula_map.dependency_graph import DependencyGraph
+    from formula_map.formula_parser import CellReference
+    from formula_map.workbook_loader import WorkbookLoader
 
 
 def _default_workbook() -> Path:
