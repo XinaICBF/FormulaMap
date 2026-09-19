@@ -31,6 +31,24 @@ Run the tests with:
 .venv/bin/pytest
 ```
 
+Start the project entry point with the first local workbook:
+
+```bash
+.venv/bin/python -m formula_map
+```
+
+Inspect a particular cell and its formula relationships:
+
+```bash
+.venv/bin/python -m formula_map data/local/model.xlsx --cell GHG!D10
+```
+
+After installing with `pip install -e .`, the equivalent command is:
+
+```bash
+.venv/bin/formula-map --cell GHG!D10
+```
+
 Files under `data/local/` are intentionally ignored by git because they may contain sensitive workbooks.
 
 ## Current scope

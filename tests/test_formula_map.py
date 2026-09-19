@@ -2,6 +2,7 @@ from openpyxl import Workbook
 
 from formula_map.dependency_graph import DependencyGraph
 from formula_map.formula_parser import CellReference, FormulaParser
+from formula_map.main import main
 from formula_map.workbook_loader import WorkbookLoader
 
 
@@ -40,3 +41,21 @@ def test_dependency_graph_keeps_formula_and_expands_ranges(tmp_path):
         CellReference("Model", "A1"),
         CellReference("Model", "A2"),
     }
+
+
+def test_main_reports_workbook_graph_and_target(tmp_path, capsys):
+    path = tmp_path / "model.xlsx"
+    workbook = Workbook()
+    worksheet = workbook.active
+    worksheet.title = "Model"
+    worksheet["A1"] = 1
+    worksheet["B1"] = "=A1"
+    workbook.save(path)
+    workbook.close()
+
+    assert main([str(path), "--cell", "Model!B1"]) == 0
+
+    output = capsys.readouterr().out
+    assert "formula_nodes=1" in output
+    assert "target=Model!B1" in output
+    assert "dependencies=Model!A1" in output
