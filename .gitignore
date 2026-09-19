@@ -158,6 +158,10 @@ env.bak/
 venv.bak/
 
 # Spyder project settings
+.idea/
+
+# Local workbooks may contain sensitive data.
+data/local/
 .spyderproject
 .spyproject
 
