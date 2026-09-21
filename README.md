@@ -49,6 +49,18 @@ After installing with `pip install -e .`, the equivalent command is:
 .venv/bin/formula-map --cell GHG!D10
 ```
 
+Start the Streamlit web interface:
+
+```bash
+.venv/bin/pip install -e .
+.venv/bin/streamlit run src/formula_map/streamlit_app.py
+```
+
+Then open the local URL printed by Streamlit, usually `http://localhost:8501`.
+The page lets you upload a workbook or select one from `data/local/`, choose a
+sheet and formula cell, and inspect its formula, dependencies, and referenced
+data ranges.
+
 Files under `data/local/` are intentionally ignored by git because they may contain sensitive workbooks.
 
 ## Current scope
