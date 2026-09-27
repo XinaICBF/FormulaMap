@@ -7,7 +7,12 @@ import tempfile
 import sys
 
 import streamlit as st
-from openpyxl.utils.cell import range_boundaries
+from openpyxl.utils.cell import (
+    coordinate_from_string,
+    get_column_letter,
+    range_boundaries,
+    column_index_from_string,
+)
 
 if __package__:
     from .dependency_graph import DependencyGraph
@@ -21,6 +26,8 @@ else:
 
 
 MAX_RELATED_CELLS = 400
+PREVIEW_ROWS = 18
+PREVIEW_COLUMNS = 10
 
 
 def _meaning(formula: str) -> str:
@@ -95,9 +102,12 @@ def _load_uploaded_workbook(uploaded_file) -> LoadedWorkbook:
 
 
 def _workbook_source():
+    """Render workbook controls away from the main analysis surface."""
+    st.sidebar.header("Workbook")
     uploaded_file = st.file_uploader(
         "Upload workbook",
         type=["xlsx", "xlsm", "xltx", "xltm"],
+        help="Choose a workbook to inspect. The analysis view stays focused on the selected cells.",
     )
     if uploaded_file is not None:
         return _load_uploaded_workbook(uploaded_file), uploaded_file.name
@@ -106,8 +116,46 @@ def _workbook_source():
     if not local_files:
         st.warning("Upload an Excel workbook to begin.")
         return None, None
-    path = st.selectbox("Local workbook", local_files, format_func=lambda item: item.name)
+    path = st.sidebar.selectbox(
+        "Local workbook", local_files, format_func=lambda item: item.name
+    )
     return _load_local_workbook(path), path.name
+
+
+def _worksheet_window(worksheet, coordinate: str) -> tuple[list[str], list[list[object]]]:
+    """Return a small Excel-like window centered on the selected cell."""
+    column, row = coordinate_from_string(coordinate)
+    selected_column = column_index_from_string(column)
+    selected_row = int(row)
+
+    min_row = max(1, selected_row - PREVIEW_ROWS // 2)
+    max_row = min(worksheet.max_row, min_row + PREVIEW_ROWS - 1)
+    min_column = max(1, selected_column - PREVIEW_COLUMNS // 2)
+    max_column = min(worksheet.max_column, min_column + PREVIEW_COLUMNS - 1)
+
+    headers = ["Row"] + [
+        get_column_letter(column) for column in range(min_column, max_column + 1)
+    ]
+    rows = []
+    for row_number in range(min_row, max_row + 1):
+        rows.append(
+            [row_number]
+            + [
+                worksheet.cell(row=row_number, column=column).value
+                for column in range(min_column, max_column + 1)
+            ]
+        )
+    return headers, rows
+
+
+def _render_worksheet_window(worksheet, coordinate: str) -> None:
+    headers, rows = _worksheet_window(worksheet, coordinate)
+    st.markdown("**Sheet preview**")
+    st.dataframe(
+        {header: [row[index] for row in rows] for index, header in enumerate(headers)},
+        use_container_width=True,
+        hide_index=True,
+    )
 
 
 def run() -> None:
@@ -124,8 +172,8 @@ def run() -> None:
         graph = DependencyGraph.from_workbook(loaded)
         parser = FormulaParser()
 
-        st.sidebar.header("Selection")
-        sheet_name = st.sidebar.selectbox("Sheet", workbook.sheetnames)
+        st.subheader("Select a formula cell")
+        sheet_name = st.selectbox("Sheet", workbook.sheetnames)
         worksheet = workbook[sheet_name]
         formula_cells = [
             cell.coordinate
@@ -137,13 +185,14 @@ def run() -> None:
             st.warning(f"No formulas found in {sheet_name}.")
             return
 
-        coordinate = st.sidebar.selectbox("Formula cell", formula_cells)
+        coordinate = st.selectbox("Formula cell", formula_cells)
         target = CellReference(sheet_name, coordinate)
         formula = worksheet[coordinate].value
         references = parser.parse(formula, sheet_name)
 
         st.subheader(filename)
         st.markdown(f"### {sheet_name}!{coordinate}")
+        _render_worksheet_window(worksheet, coordinate)
         st.markdown("**Formula**")
         st.code(formula, language="excel")
         st.markdown("**Meaning**")
