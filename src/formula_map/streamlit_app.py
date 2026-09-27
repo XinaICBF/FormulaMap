@@ -26,8 +26,9 @@ else:
 
 
 MAX_RELATED_CELLS = 400
-PREVIEW_ROWS = 18
-PREVIEW_COLUMNS = 10
+DEFAULT_PREVIEW_ROWS = 20
+DEFAULT_PREVIEW_COLUMNS = 20
+MAX_PREVIEW_DIMENSION = 50
 
 
 def _meaning(formula: str) -> str:
@@ -122,16 +123,18 @@ def _workbook_source():
     return _load_local_workbook(path), path.name
 
 
-def _worksheet_window(worksheet, coordinate: str) -> tuple[list[str], list[list[object]]]:
-    """Return a small Excel-like window centered on the selected cell."""
-    column, row = coordinate_from_string(coordinate)
-    selected_column = column_index_from_string(column)
-    selected_row = int(row)
-
-    min_row = max(1, selected_row - PREVIEW_ROWS // 2)
-    max_row = min(worksheet.max_row, min_row + PREVIEW_ROWS - 1)
-    min_column = max(1, selected_column - PREVIEW_COLUMNS // 2)
-    max_column = min(worksheet.max_column, min_column + PREVIEW_COLUMNS - 1)
+def _worksheet_window(
+    worksheet,
+    top_left: str,
+    row_count: int,
+    column_count: int,
+) -> tuple[list[str], list[list[object]]]:
+    """Return a user-defined Excel-like window."""
+    column, row = coordinate_from_string(top_left.strip().upper())
+    min_column = column_index_from_string(column)
+    min_row = int(row)
+    max_row = min_row + row_count - 1
+    max_column = min_column + column_count - 1
 
     headers = ["Row"] + [
         get_column_letter(column) for column in range(min_column, max_column + 1)
@@ -142,15 +145,32 @@ def _worksheet_window(worksheet, coordinate: str) -> tuple[list[str], list[list[
             [row_number]
             + [
                 worksheet.cell(row=row_number, column=column).value
+                if row_number <= worksheet.max_row and column <= worksheet.max_column
+                else None
                 for column in range(min_column, max_column + 1)
             ]
         )
     return headers, rows
 
 
-def _render_worksheet_window(worksheet, coordinate: str) -> None:
-    headers, rows = _worksheet_window(worksheet, coordinate)
+def _render_worksheet_window(
+    worksheet,
+    top_left: str,
+    row_count: int,
+    column_count: int,
+) -> None:
+    try:
+        headers, rows = _worksheet_window(
+            worksheet, top_left, row_count, column_count
+        )
+    except (TypeError, ValueError):
+        st.error("Enter a valid top-left cell, for example F20.")
+        return
+
+    _, first_row = coordinate_from_string(top_left.strip().upper())
+    last_cell = f"{headers[-1]}{int(first_row) + row_count - 1}"
     st.markdown("**Sheet preview**")
+    st.caption(f"Showing {top_left.strip().upper()}:{last_cell}")
     st.dataframe(
         {header: [row[index] for row in rows] for index, header in enumerate(headers)},
         use_container_width=True,
@@ -192,7 +212,30 @@ def run() -> None:
 
         st.subheader(filename)
         st.markdown(f"### {sheet_name}!{coordinate}")
-        _render_worksheet_window(worksheet, coordinate)
+        st.markdown("**Preview range**")
+        preview_top_left, preview_rows, preview_columns = st.columns([2, 1, 1])
+        with preview_top_left:
+            top_left = st.text_input("Top-left cell", value=coordinate)
+        with preview_rows:
+            row_count = st.number_input(
+                "Rows",
+                min_value=1,
+                max_value=MAX_PREVIEW_DIMENSION,
+                value=DEFAULT_PREVIEW_ROWS,
+            )
+        with preview_columns:
+            column_count = st.number_input(
+                "Columns",
+                min_value=1,
+                max_value=MAX_PREVIEW_DIMENSION,
+                value=DEFAULT_PREVIEW_COLUMNS,
+            )
+        _render_worksheet_window(
+            worksheet,
+            top_left,
+            int(row_count),
+            int(column_count),
+        )
         st.markdown("**Formula**")
         st.code(formula, language="excel")
         st.markdown("**Meaning**")
