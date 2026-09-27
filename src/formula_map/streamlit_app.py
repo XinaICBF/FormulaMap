@@ -30,7 +30,6 @@ DEFAULT_PREVIEW_ROWS = 20
 DEFAULT_PREVIEW_COLUMNS = 20
 MAX_PREVIEW_DIMENSION = 50
 
-
 def _meaning(formula: str) -> str:
     """Return a short human-readable description for common formulas."""
     upper_formula = formula.upper()
@@ -105,7 +104,7 @@ def _load_uploaded_workbook(uploaded_file) -> LoadedWorkbook:
 def _workbook_source():
     """Render workbook controls away from the main analysis surface."""
     st.sidebar.header("Workbook")
-    uploaded_file = st.file_uploader(
+    uploaded_file = st.sidebar.file_uploader(
         "Upload workbook",
         type=["xlsx", "xlsm", "xltx", "xltm"],
         help="Choose a workbook to inspect. The analysis view stays focused on the selected cells.",
@@ -115,7 +114,7 @@ def _workbook_source():
 
     local_files = sorted(Path("data/local").glob("*.xlsx"))
     if not local_files:
-        st.warning("Upload an Excel workbook to begin.")
+        st.sidebar.warning("Upload an Excel workbook to begin.")
         return None, None
     path = st.sidebar.selectbox(
         "Local workbook", local_files, format_func=lambda item: item.name
@@ -180,6 +179,7 @@ def _render_worksheet_window(
 
 def run() -> None:
     st.set_page_config(page_title="FormulaMap", layout="wide")
+    # _apply_github_style()
     st.title("FormulaMap")
     st.caption("Explore Excel formulas, dependencies, and related data.")
 
@@ -193,7 +193,9 @@ def run() -> None:
         parser = FormulaParser()
 
         st.subheader("Select a formula cell")
-        sheet_name = st.selectbox("Sheet", workbook.sheetnames)
+        selection_sheet, selection_formula = st.columns([1, 2])
+        with selection_sheet:
+            sheet_name = st.selectbox("Sheet", workbook.sheetnames)
         worksheet = workbook[sheet_name]
         formula_cells = [
             cell.coordinate
@@ -205,7 +207,8 @@ def run() -> None:
             st.warning(f"No formulas found in {sheet_name}.")
             return
 
-        coordinate = st.selectbox("Formula cell", formula_cells)
+        with selection_formula:
+            coordinate = st.selectbox("Formula cell", formula_cells)
         target = CellReference(sheet_name, coordinate)
         formula = worksheet[coordinate].value
         references = parser.parse(formula, sheet_name)
